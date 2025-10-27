@@ -1,7 +1,15 @@
-numpy
-scipy
-matplotlib
-statsmodels
-scikit-learn
-pandas
-seaborn
+pip install \
+  torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
+  "gymnasium[box2d,classic-control,toy-text]" \
+  "ray[rllib]" \
+  wandb \
+  numpy \
+  scipy \
+  matplotlib \
+  tensorboard \
+  moviepy \
+  pandas \
+  tqdm \
+  statsmodels \
+  scikit-learn \
+  seaborn
