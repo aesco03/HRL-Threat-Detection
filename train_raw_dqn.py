@@ -1,0 +1,27 @@
+import ray
+from ray.rllib.algorithms.dqn import DQNConfig
+from envs.base_file_analysis_env import FileAnalysisEnv
+
+if __name__ == "__main__":
+    ray.init()
+    config = (
+        DQNConfig()
+        .framework("torch")
+        .environment(
+            FileAnalysisEnv,
+            env_config={
+                "dataset_path": "./data/raw/pdfs/malware",
+                "labels_csv": "./data/processed/labeled/cleaned_pdfmalware2022.parquet",
+                "feature_dim": 64,
+                "metadata_dim": 16,
+                "max_steps": 20,
+                "step_cost": 0.01,
+                "pos_fraction": 0.5,
+            },
+        )
+        .training(double_q=True, dueling=True)
+    )
+    algo = config.build()
+    for i in range(20):
+        result = algo.train()
+        print(i, result.get("episode_reward_mean"))

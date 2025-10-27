@@ -1,10 +1,11 @@
- import os
- import random
- import csv
- import numpy as np
- from gymnasium import Env, spaces
- from tools.extract_file_features import extract_file_features
- from analysis_modules.module_registry import run as run_module
+import os
+import random
+import csv
+import numpy as np
+import pandas as pd
+from gymnasium import Env, spaces
+from tools.extract_file_features import extract_file_features
+from analysis_modules.module_registry import run as run_module
 
  A_METADATA = 0
  A_PDF = 1
@@ -18,6 +19,11 @@ class FileAnalysisEnv(Env):
         cfg = env_config or {}
         self.dataset_path = cfg.get("dataset_path", "./data/files/")
         self.labels_csv = cfg.get("labels_csv", None)
+        self.labels_parquet = cfg.get("labels_parquet", None)
+        self.label_col = cfg.get("label_col", None)
+        self.filename_col = cfg.get("filename_col", None)
+        self.label_positive_values = set(cfg.get("label_positive_values", [1, "1", True, "Malicious", "malicious"]))
+        self.label_negative_values = set(cfg.get("label_negative_values", [0, "0", False, "Benign", "benign"]))
         self.feature_dim = int(cfg.get("feature_dim", 64))
         self.max_steps = int(cfg.get("max_steps", 20))
         self.step_cost = float(cfg.get("step_cost", 0.01))
@@ -35,24 +41,37 @@ class FileAnalysisEnv(Env):
         self._steps = 0
         self._obs = np.zeros(self.feature_dim, dtype=np.float32)
 
-     def _load_dataset(self):
-         paths, labels = [], []
-         for root, _, files in os.walk(self.dataset_path):
-             for f in files:
-                 fl = f.lower()
-                 if fl.endswith((".pdf", ".png", ".jpg", ".jpeg")):
-                     paths.append(os.path.join(root, f))
-         if self.labels_csv:
-             lm = {}
-             with open(self.labels_csv, "r") as fh:
-                 for name, y in csv.reader(fh):
-                     lm[name] = int(y)
-             labels = [lm.get(os.path.basename(p), 0) for p in paths]
-         else:
-             labels = [0] * len(paths)
-         if not paths:
-             raise ValueError(f"No files found in {self.dataset_path}")
-         return paths, labels
+    def _load_dataset(self):
+        paths, labels = [], []
+        for root, _, files in os.walk(self.dataset_path):
+            for f in files:
+                fl = f.lower()
+                if fl.endswith((".pdf", ".png", ".jpg", ".jpeg")):
+                    paths.append(os.path.join(root, f))
+        if self.labels_parquet:
+            df = pd.read_parquet(self.labels_parquet)
+            if not self.filename_col or self.filename_col not in df.columns:
+                raise ValueError("filename_col missing or not in parquet for raw-file env labeling")
+            if not self.label_col or self.label_col not in df.columns:
+                raise ValueError("label_col missing or not in parquet for raw-file env labeling")
+            lm = {}
+            for _, row in df[[self.filename_col, self.label_col]].iterrows():
+                fn = os.path.basename(str(row[self.filename_col]))
+                v = row[self.label_col]
+                y = 1 if v in self.label_positive_values else 0 if v in self.label_negative_values else int(v)
+                lm[fn] = int(y)
+            labels = [lm.get(os.path.basename(p), 0) for p in paths]
+        elif self.labels_csv:
+            lm = {}
+            with open(self.labels_csv, "r") as fh:
+                for name, y in csv.reader(fh):
+                    lm[name] = int(y)
+            labels = [lm.get(os.path.basename(p), 0) for p in paths]
+        else:
+            labels = [0] * len(paths)
+        if not paths:
+            raise ValueError(f"No files found in {self.dataset_path}")
+        return paths, labels
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
@@ -71,35 +90,35 @@ class FileAnalysisEnv(Env):
         self._obs[off:off+size] = meta
         return self._obs, {}
 
-     def step(self, action):
-         self._steps += 1
-         reward = -self.step_cost
-         terminated = False
-         truncated = self._steps >= self.max_steps
-         fp = self.file_paths[self._idx]
-         if action in (A_CLASS0, A_CLASS1):
-             y = 0 if action == A_CLASS0 else 1
-             reward = 1.0 if y == int(self._label) else -1.0
-             terminated = True
-         elif action == A_METADATA:
-             vec, seg = run_module("metadata_scan", fp, self.seg_sizes["meta"])
-             off = self.seg_offsets["meta"]
-             size = self.seg_sizes["meta"]
-             self._obs[off:off+size] = vec
-         elif action == A_PDF:
-             vec, seg = run_module("pdf_structure", fp, self.seg_sizes["pdf"])
-             off = self.seg_offsets["pdf"]
-             size = self.seg_sizes["pdf"]
-             self._obs[off:off+size] = vec
-         elif action == A_TEXT:
-             vec, seg = run_module("text_extract", fp, self.seg_sizes["text"])
-             off = self.seg_offsets["text"]
-             size = self.seg_sizes["text"]
-             self._obs[off:off+size] = vec
-         elif action == A_IMAGE_STEGO:
-             vec, seg = run_module("image_stego", fp, self.seg_sizes["image"])
-             off = self.seg_offsets["image"]
-             size = self.seg_sizes["image"]
-             self._obs[off:off+size] = vec
-         info = {"true_label": int(self._label), "file_path": fp}
-         return self._obs, reward, terminated, truncated, info
+    def step(self, action):
+        self._steps += 1
+        reward = -self.step_cost
+        terminated = False
+        truncated = self._steps >= self.max_steps
+        fp = self.file_paths[self._idx]
+        if action in (A_CLASS0, A_CLASS1):
+            y = 0 if action == A_CLASS0 else 1
+            reward = 1.0 if y == int(self._label) else -1.0
+            terminated = True
+        elif action == A_METADATA:
+            vec, seg = run_module("metadata_scan", fp, self.seg_sizes["meta"])
+            off = self.seg_offsets["meta"]
+            size = self.seg_sizes["meta"]
+            self._obs[off:off+size] = vec
+        elif action == A_PDF:
+            vec, seg = run_module("pdf_structure", fp, self.seg_sizes["pdf"])
+            off = self.seg_offsets["pdf"]
+            size = self.seg_sizes["pdf"]
+            self._obs[off:off+size] = vec
+        elif action == A_TEXT:
+            vec, seg = run_module("text_extract", fp, self.seg_sizes["text"])
+            off = self.seg_offsets["text"]
+            size = self.seg_sizes["text"]
+            self._obs[off:off+size] = vec
+        elif action == A_IMAGE_STEGO:
+            vec, seg = run_module("image_stego", fp, self.seg_sizes["image"])
+            off = self.seg_offsets["image"]
+            size = self.seg_sizes["image"]
+            self._obs[off:off+size] = vec
+        info = {"true_label": int(self._label), "file_path": fp}
+        return self._obs, reward, terminated, truncated, info

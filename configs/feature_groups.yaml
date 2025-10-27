@@ -1,0 +1,11 @@
+label_col: Class
+label_positive_values: [Malicious]
+label_negative_values: [Benign]
+meta_cols: [PdfSize, MetadataSize, Pages, isEncrypted, EmbeddedFiles, Images]
+pdf_cols: [Header, Obj, Endobj, Stream, Endstream, Xref, Trailer, StartXref, XrefLength, PageNo, Encrypt, ObjStm, JS, Javascript, AA, OpenAction, Acroform, JBIG2Decode, RichMedia, Launch, EmbeddedFile, XFA]
+text_cols: [TitleCharacters]
+image_cols: [Colors]
+group_dim: 32
+max_steps: 20
+step_cost: 0.05
+pos_fraction: 0.5

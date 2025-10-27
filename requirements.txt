@@ -13,3 +13,7 @@ pip install \
   statsmodels \
   scikit-learn \
   seaborn
+  PyPDF2
+  pillow
+  pyarrow
+  pyyaml
