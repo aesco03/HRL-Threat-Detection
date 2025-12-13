@@ -1,9 +1,9 @@
 import os
 import magic
 import pandas as pd
-import imageextract as image_extractor
-import pdfextract as pdf_extractor
-import pdfimageextract as pdf_image_extractor
+from . import imageextract as image_extractor
+from . import pdfextract as pdf_extractor
+from . import pdfimageextract as pdf_image_extractor
 
 # All possible features
 ALL_FEATURE_KEYS = [

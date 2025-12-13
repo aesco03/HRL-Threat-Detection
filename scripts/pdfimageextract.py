@@ -1,7 +1,8 @@
 import os
 import numpy as np
 import pandas as pd
-from imageextract import extract_all_features
+from .imageextract import extract_all_features
+
 # Existing function: used when images are grouped in a folder
 def aggregate_features_for_pdf_folder(image_folder, pdf_name="unknown.pdf"):
     image_files = [
@@ -31,8 +32,8 @@ def aggregate_features_from_image_list(image_paths, pdf_name="unknown.pdf"):
     def frac_above_zero(key):
         values = [f.get(key, 0) for f in features_list]
         return sum(1 for v in values if v > 0) / len(values)
-
- return {
+    
+    return {
         "filename": pdf_name,
         "num_images": num_images,
         "pdf_img_mean_size_bytes": agg("File_Size_Bytes", np.mean),

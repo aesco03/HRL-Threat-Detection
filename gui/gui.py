@@ -8,7 +8,7 @@ import json
 import pandas as pd
 import numpy as np
 import joblib
-from unified_extractor import process_file, ALL_FEATURE_KEYS
+from scripts.unified_extractor import process_file, ALL_FEATURE_KEYS
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,10 +16,11 @@ import torch.nn.functional as F
 # Upload folder
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-ORACLE_PTH = "oracle_p02.pth"
-SCALER_PATH = "scaler.joblib"
-CFG_PATH = "feature_cfg.json"
+ORACLE_PTH = os.path.join(BASE_DIR, "oracle_p02.pth")
+SCALER_PATH =os.path.join(BASE_DIR, "scaler.joblib")
+CFG_PATH = os.path.join(BASE_DIR, "feature_cfg.json")
 
 # Compatibility placeholders (not used for prediction)
 POS_LABELS = {"malicious_pdf", "stego_images"}
